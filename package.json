@@ -1,0 +1,48 @@
+{
+  "name": "rsbuild-react-router",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "typecheck": "react-router typegen && tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@react-router/express": "^7.0.2",
+    "@react-router/node": "^7.0.2",
+    "express": "^4.21.2",
+    "isbot": "^5.1.18",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router": "^7.0.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/generator": "^7.26.3",
+    "@babel/parser": "^7.26.3",
+    "@babel/plugin-transform-typescript": "^7.26.3",
+    "@babel/preset-typescript": "^7.26.0",
+    "@babel/traverse": "^7.26.4",
+    "@babel/types": "^7.26.3",
+    "@react-router/dev": "^7.0.2",
+    "@rsbuild/core": "^1.1.10",
+    "@rsbuild/plugin-react": "^1.1.0",
+    "@types/express": "^5.0.0",
+    "@types/express-serve-static-core": "^5.0.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "babel-dead-code-elimination": "^1.0.8",
+    "esbuild": "0.24.0",
+    "execa": "^9.5.2",
+    "jiti": "^2.4.2",
+    "jsesc": "^3.1.0",
+    "pathe": "^1.1.2",
+    "rspack-plugin-virtual-module": "^0.1.13",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  }
+}
