@@ -38,7 +38,7 @@ export default defineConfig(async ({ command }) => {
     future = {},
     prerender,
     presets,
-    ssr,
+    ssr = true,
   } = await jiti
     .import<Config>("./react-router.config.ts", {
       default: true,
@@ -55,6 +55,9 @@ export default defineConfig(async ({ command }) => {
   }
   if (presets) {
     throw new Error("presets are not supported right now.");
+  }
+  if (!ssr) {
+    throw new Error("ssr is required to be true right now.");
   }
 
   const entryClientPath = resolve(appDirectory, "entry.client.tsx");
@@ -89,6 +92,7 @@ export default defineConfig(async ({ command }) => {
   // TODO: Get this from the final config options
   const publicPath = "/";
 
+  let devManifest: any;
   const getReactRouterManifestForDev = async () => {
     const result: Record<string, unknown> = {};
 
@@ -130,12 +134,11 @@ export default defineConfig(async ({ command }) => {
       };
     }
 
-    return {
+    // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+    return (devManifest = {
       version: String(Math.random()),
-      url: "/todo:browser-manifest",
-      // url: combineURLs(ctx.publicPath, virtual.browserManifest.url),
+      url: "/static/js/virtual/react-router/browser-manifest.js",
       // hmr: {
-      //   url: "/todo:inject-hmr-runtime",
       //   // runtime: combineURLs(ctx.publicPath, virtualInjectHmrRuntime.url),
       // },
       entry: {
@@ -143,11 +146,16 @@ export default defineConfig(async ({ command }) => {
         imports: [],
       },
       routes: result,
-    };
+    });
   };
 
   const vmodPlugin = new RspackVirtualModulePlugin({
-    "virtual/react-router/browser-manifest": "",
+    "virtual/react-router/browser-manifest": `window.__reactRouterManifest=${jsesc(
+      await getReactRouterManifestForDev(),
+      {
+        es6: true,
+      }
+    )};`,
     "virtual/react-router/server-manifest": `export default ${jsesc(
       await getReactRouterManifestForDev(),
       {
@@ -241,6 +249,8 @@ export default defineConfig(async ({ command }) => {
         source: {
           entry: {
             "entry.client": entryClientPath,
+            "virtual/react-router/browser-manifest":
+              "virtual/react-router/browser-manifest",
             ...Object.values(routes).reduce(
               (acc, route) =>
                 Object.assign(acc, {

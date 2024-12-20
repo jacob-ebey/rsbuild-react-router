@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import type { Route } from "./+types/home";
 import { Welcome } from "../welcome/welcome";
-import { useLoaderData } from "react-router";
 
 export function meta(_: Route.MetaArgs) {
   return [
