@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { Route } from "./+types/home";
+import './home.css'
 import { Welcome } from "../welcome/welcome";
 
 export function meta(_: Route.MetaArgs) {

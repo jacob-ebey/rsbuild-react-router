@@ -393,6 +393,9 @@ async function getReactRouterManifestForDev(
 ) {
   const result: Record<string, RouteManifestItem> = {};
   for (const [key, route] of Object.entries(routes)) {
+    const assets = clientStats?.assetsByChunkName?.[route.id];
+    const jsAssets = assets?.filter(asset => asset.endsWith('.js')) || [];
+    const cssAssets = assets?.filter(asset => asset.endsWith('.css')) || [];
     result[key] = {
       id: route.id,
       parentId: route.parentId,
@@ -408,18 +411,22 @@ async function getReactRouterManifestForDev(
       hasClientAction: false,
       hasClientLoader: false,
       hasErrorBoundary: route.id === 'root',
-      imports: [],
-      css: ['/static/css/root.css'],
+      imports: jsAssets.map(asset => combineURLs('/', asset)),
+      css: cssAssets.map(asset => combineURLs('/', asset)),
     };
   }
+
+  const entryAssets = clientStats?.assetsByChunkName?.['entry.client'];
+  const entryJsAssets = entryAssets?.filter(asset => asset.endsWith('.js')) || [];
+  const entryCssAssets = entryAssets?.filter(asset => asset.endsWith('.css')) || [];
 
   return {
     version: String(Math.random()),
     url: '/static/js/virtual/react-router/browser-manifest.js',
     entry: {
       module: '/static/js/entry.client.js',
-      imports: [],
-      css: ['/static/css/root.css'],
+      imports: entryJsAssets.map(asset => combineURLs('/', asset)),
+      css: entryCssAssets.map(asset => combineURLs('/', asset)),
     },
     routes: result,
   };
