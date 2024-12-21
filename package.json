@@ -40,6 +40,7 @@
     "execa": "^9.5.2",
     "jiti": "^2.4.2",
     "jsesc": "^3.1.0",
+    "@types/jsesc": "^3.0.3",
     "pathe": "^1.1.2",
     "rspack-plugin-virtual-module": "^0.1.13",
     "tailwindcss": "^3.4.17",

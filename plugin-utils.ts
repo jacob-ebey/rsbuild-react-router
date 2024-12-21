@@ -1,6 +1,7 @@
-import type { Babel } from "./babel";
-import { t } from "./babel";
+import type { Babel, NodePath, ParseResult } from "./babel";
+import { t, traverse } from "./babel";
 import { normalize } from "pathe";
+import { findReferencedIdentifiers, deadCodeElimination } from 'babel-dead-code-elimination';
 
 export function validateDestructuredExports(
     id: Babel.ArrayPattern | Babel.ObjectPattern,
@@ -104,3 +105,150 @@ export function stripFileExtension(file: string) {
 export function createRouteId(file: string) {
   return normalize(stripFileExtension(file));
 }
+
+export function generateWithProps() {
+  return `
+    import { createElement as h } from "react";
+    import { useActionData, useLoaderData, useMatches, useParams, useRouteError } from "react-router";
+
+    export function withComponentProps(Component) {
+      return function Wrapped() {
+        const props = {
+          params: useParams(),
+          loaderData: useLoaderData(),
+          actionData: useActionData(),
+          matches: useMatches(),
+        };
+        return h(Component, props);
+      };
+    }
+
+    export function withHydrateFallbackProps(HydrateFallback) {
+      return function Wrapped() {
+        const props = {
+          params: useParams(),
+        };
+        return h(HydrateFallback, props);
+      };
+    }
+
+    export function withErrorBoundaryProps(ErrorBoundary) {
+      return function Wrapped() {
+        const props = {
+          params: useParams(),
+          loaderData: useLoaderData(),
+          actionData: useActionData(),
+          error: useRouteError(),
+        };
+        return h(ErrorBoundary, props);
+      };
+    }
+  `;
+}
+
+export const removeExports = (
+  ast: ParseResult<Babel.File>,
+  exportsToRemove: string[],
+) => {
+  const previouslyReferencedIdentifiers = findReferencedIdentifiers(ast);
+  let exportsFiltered = false;
+  const markedForRemoval = new Set<NodePath<Babel.Node>>();
+
+  traverse(ast, {
+    ExportDeclaration(path: NodePath) {
+      // export { foo };
+      // export { bar } from "./module";
+      if (path.node.type === 'ExportNamedDeclaration') {
+        if (path.node.specifiers.length) {
+          path.node.specifiers = path.node.specifiers.filter((specifier: Babel.ExportSpecifier) => {
+            // Filter out individual specifiers
+            if (
+              specifier.type === 'ExportSpecifier' &&
+              specifier.exported.type === 'Identifier'
+            ) {
+              if (exportsToRemove.includes(specifier.exported.name)) {
+                exportsFiltered = true;
+                return false;
+              }
+            }
+            return true;
+          });
+          // Remove the entire export statement if all specifiers were removed
+          if (path.node.specifiers.length === 0) {
+            markedForRemoval.add(path);
+          }
+        }
+
+        // export const foo = ...;
+        // export const [ foo ] = ...;
+        if (path.node.declaration?.type === 'VariableDeclaration') {
+          const declaration = path.node.declaration;
+          declaration.declarations = declaration.declarations.filter(
+            (declaration: Babel.VariableDeclarator) => {
+              // export const foo = ...;
+              // export const foo = ..., bar = ...;
+              if (
+                declaration.id.type === 'Identifier' &&
+                exportsToRemove.includes(declaration.id.name)
+              ) {
+                // Filter out individual variables
+                exportsFiltered = true;
+                return false;
+              }
+
+              // export const [ foo ] = ...;
+              // export const { foo } = ...;
+              if (
+                declaration.id.type === 'ArrayPattern' ||
+                declaration.id.type === 'ObjectPattern'
+              ) {
+                // NOTE: These exports cannot be safely removed, so instead we
+                // validate them to ensure that any exports that are intended to
+                // be removed are not present
+                validateDestructuredExports(declaration.id, exportsToRemove);
+              }
+
+              return true;
+            },
+          );
+          // Remove the entire export statement if all variables were removed
+          if (declaration.declarations.length === 0) {
+            markedForRemoval.add(path);
+          }
+        }
+
+        // export function foo() {}
+        if (path.node.declaration?.type === 'FunctionDeclaration') {
+          const id = path.node.declaration.id;
+          if (id && exportsToRemove.includes(id.name)) {
+            markedForRemoval.add(path);
+          }
+        }
+
+        // export class Foo() {}
+        if (path.node.declaration?.type === 'ClassDeclaration') {
+          const id = path.node.declaration.id;
+          if (id && exportsToRemove.includes(id.name)) {
+            markedForRemoval.add(path);
+          }
+        }
+      }
+
+      // export default ...;
+      if (
+        path.node.type === 'ExportDefaultDeclaration' &&
+        exportsToRemove.includes('default')
+      ) {
+        markedForRemoval.add(path);
+      }
+    },
+  });
+  if (markedForRemoval.size > 0 || exportsFiltered) {
+    for (const path of markedForRemoval) {
+      path.remove();
+    }
+
+    // Run dead code elimination on any newly unreferenced identifiers
+    deadCodeElimination(ast, previouslyReferencedIdentifiers);
+  }
+};

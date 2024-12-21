@@ -1,10 +1,6 @@
-import {
-  findReferencedIdentifiers,
-  deadCodeElimination,
-} from 'babel-dead-code-elimination';
-import { isAbsolute, normalize, resolve, relative } from 'pathe';
+import { isAbsolute, resolve, relative } from 'pathe';
 import type { Config } from '@react-router/dev/config';
-import type { RouteConfig, RouteConfigEntry } from '@react-router/dev/routes';
+import type {  RouteConfigEntry } from '@react-router/dev/routes';
 import type { RsbuildPlugin, Rspack } from '@rsbuild/core';
 import { RspackVirtualModulePlugin } from 'rspack-plugin-virtual-module';
 import * as esbuild from 'esbuild';
@@ -14,10 +10,11 @@ import jsesc from 'jsesc';
 import type { Babel, NodePath, ParseResult } from './babel';
 import { traverse, t, parse, generate } from './babel';
 import {
-  validateDestructuredExports,
   toFunctionExpression,
   combineURLs,
   createRouteId,
+  generateWithProps,
+  removeExports,
 } from './plugin-utils';
 
 export type PluginOptions = {
@@ -275,28 +272,92 @@ export const reactRouterPlugin = (
       });
     });
 
-    // Add manifest transformation
-    // Can now access clientStats in node environment
+    // Add environment-specific modifications
+    api.modifyEnvironmentConfig(async (config, { name, mergeEnvironmentConfig }) => {
+      if (name === 'web') {
+        return mergeEnvironmentConfig(config, {
+          tools: {
+            rspack: (rspackConfig) => {
+              if (rspackConfig.plugins) {
+                rspackConfig.plugins.push({
+                  apply(compiler: Rspack.Compiler) {
+                    compiler.hooks.emit.tapAsync('ModifyBrowserManifest', async (compilation: Rspack.Compilation, callback) => {
+                      const manifest = await getReactRouterManifestForDev(
+                        routes,
+                        finalOptions,
+                        compilation.getStats().toJson()
+                      );
+
+                      const manifestPath = 'static/js/virtual/react-router/browser-manifest.js';
+                      const manifestContent = `window.__reactRouterManifest=${jsesc(manifest, { es6: true })};`;
+
+                      if (compilation.assets[manifestPath]) {
+                        const originalSource = compilation.assets[manifestPath].source().toString();
+                        const newSource = originalSource.replace(
+                          /["'`]PLACEHOLDER["'`]/,
+                          jsesc(manifest, { es6: true })
+                        );
+                        compilation.assets[manifestPath] = {
+                          source: () => newSource,
+                          size: () => newSource.length,
+                          map: () => ({
+                            version: 3,
+                            sources: [manifestPath],
+                            names: [],
+                            mappings: '',
+                            file: manifestPath,
+                            sourcesContent: [newSource]
+                          }),
+                          sourceAndMap: () => ({
+                            source: newSource,
+                            map: {
+                              version: 3,
+                              sources: [manifestPath],
+                              names: [],
+                              mappings: '',
+                              file: manifestPath,
+                              sourcesContent: [newSource]
+                            }
+                          }),
+                          updateHash: (hash) => hash.update(newSource),
+                          buffer: () => Buffer.from(newSource)
+                        };
+                      }
+                      callback();
+                    });
+                  }
+                });
+              }
+              return rspackConfig;
+            },
+          },
+        });
+      }
+      return config;
+    });
+
+    // Add manifest transformations
     api.transform(
       {
         test: /virtual\/react-router\/(browser|server)-manifest/,
       },
       async args => {
+        // For browser manifest, return a placeholder that will be modified by the plugin
+        if (args.environment.name === 'web') {
+          return {
+            code: `window.__reactRouterManifest = "PLACEHOLDER";`,
+          };
+        }
+
+        // For server manifest, use the clientStats as before
         const manifest = await getReactRouterManifestForDev(
           routes,
           finalOptions,
-          args.environment.name === 'node' ? clientStats : undefined
+          clientStats
         );
-
-        if (args.environment.name === 'web') {
-          return {
-            code: `window.__reactRouterManifest=${jsesc(manifest, { es6: true })};`,
-          };
-        } else {
-          return {
-            code: `export default ${jsesc(manifest, { es6: true })};`,
-          };
-        }
+        return {
+          code: `export default ${jsesc(manifest, { es6: true })};`,
+        };
       },
     );
 
@@ -486,46 +547,6 @@ function generateServerBuild(
   `;
 }
 
-export function generateWithProps() {
-  return `
-    import { createElement as h } from "react";
-    import { useActionData, useLoaderData, useMatches, useParams, useRouteError } from "react-router";
-
-    export function withComponentProps(Component) {
-      return function Wrapped() {
-        const props = {
-          params: useParams(),
-          loaderData: useLoaderData(),
-          actionData: useActionData(),
-          matches: useMatches(),
-        };
-        return h(Component, props);
-      };
-    }
-
-    export function withHydrateFallbackProps(HydrateFallback) {
-      return function Wrapped() {
-        const props = {
-          params: useParams(),
-        };
-        return h(HydrateFallback, props);
-      };
-    }
-
-    export function withErrorBoundaryProps(ErrorBoundary) {
-      return function Wrapped() {
-        const props = {
-          params: useParams(),
-          loaderData: useLoaderData(),
-          actionData: useActionData(),
-          error: useRouteError(),
-        };
-        return h(ErrorBoundary, props);
-      };
-    }
-  `;
-}
-
 export const transformRoute = (ast: ParseResult<Babel.File>) => {
   const hocs: Array<[string, Babel.Identifier]> = [];
   function getHocUid(path: NodePath, hocName: string) {
@@ -535,7 +556,7 @@ export const transformRoute = (ast: ParseResult<Babel.File>) => {
   }
 
   traverse(ast, {
-    ExportDeclaration(path) {
+    ExportDeclaration(path: NodePath) {
       if (path.isExportDefaultDeclaration()) {
         const declaration = path.get('declaration');
         // prettier-ignore
@@ -555,7 +576,7 @@ export const transformRoute = (ast: ParseResult<Babel.File>) => {
 
         if (decl.isVariableDeclaration()) {
           // biome-ignore lint/complexity/noForEach: <explanation>
-          decl.get('declarations').forEach(varDeclarator => {
+          decl.get('declarations').forEach((varDeclarator: NodePath) => {
             const id = varDeclarator.get('id');
             const init = varDeclarator.get('init');
             const expr = init.node;
@@ -599,112 +620,5 @@ export const transformRoute = (ast: ParseResult<Babel.File>) => {
         t.stringLiteral('virtual/react-router/with-props'),
       ),
     );
-  }
-};
-
-export const removeExports = (
-  ast: ParseResult<Babel.File>,
-  exportsToRemove: string[],
-) => {
-  const previouslyReferencedIdentifiers = findReferencedIdentifiers(ast);
-  let exportsFiltered = false;
-  const markedForRemoval = new Set<NodePath<Babel.Node>>();
-
-  traverse(ast, {
-    ExportDeclaration(path) {
-      // export { foo };
-      // export { bar } from "./module";
-      if (path.node.type === 'ExportNamedDeclaration') {
-        if (path.node.specifiers.length) {
-          path.node.specifiers = path.node.specifiers.filter(specifier => {
-            // Filter out individual specifiers
-            if (
-              specifier.type === 'ExportSpecifier' &&
-              specifier.exported.type === 'Identifier'
-            ) {
-              if (exportsToRemove.includes(specifier.exported.name)) {
-                exportsFiltered = true;
-                return false;
-              }
-            }
-            return true;
-          });
-          // Remove the entire export statement if all specifiers were removed
-          if (path.node.specifiers.length === 0) {
-            markedForRemoval.add(path);
-          }
-        }
-
-        // export const foo = ...;
-        // export const [ foo ] = ...;
-        if (path.node.declaration?.type === 'VariableDeclaration') {
-          const declaration = path.node.declaration;
-          declaration.declarations = declaration.declarations.filter(
-            declaration => {
-              // export const foo = ...;
-              // export const foo = ..., bar = ...;
-              if (
-                declaration.id.type === 'Identifier' &&
-                exportsToRemove.includes(declaration.id.name)
-              ) {
-                // Filter out individual variables
-                exportsFiltered = true;
-                return false;
-              }
-
-              // export const [ foo ] = ...;
-              // export const { foo } = ...;
-              if (
-                declaration.id.type === 'ArrayPattern' ||
-                declaration.id.type === 'ObjectPattern'
-              ) {
-                // NOTE: These exports cannot be safely removed, so instead we
-                // validate them to ensure that any exports that are intended to
-                // be removed are not present
-                validateDestructuredExports(declaration.id, exportsToRemove);
-              }
-
-              return true;
-            },
-          );
-          // Remove the entire export statement if all variables were removed
-          if (declaration.declarations.length === 0) {
-            markedForRemoval.add(path);
-          }
-        }
-
-        // export function foo() {}
-        if (path.node.declaration?.type === 'FunctionDeclaration') {
-          const id = path.node.declaration.id;
-          if (id && exportsToRemove.includes(id.name)) {
-            markedForRemoval.add(path);
-          }
-        }
-
-        // export class Foo() {}
-        if (path.node.declaration?.type === 'ClassDeclaration') {
-          const id = path.node.declaration.id;
-          if (id && exportsToRemove.includes(id.name)) {
-            markedForRemoval.add(path);
-          }
-        }
-      }
-
-      // export default ...;
-      if (
-        path.node.type === 'ExportDefaultDeclaration' &&
-        exportsToRemove.includes('default')
-      ) {
-        markedForRemoval.add(path);
-      }
-    },
-  });
-  if (markedForRemoval.size > 0 || exportsFiltered) {
-    for (const path of markedForRemoval) {
-      path.remove();
-    }
-
-    // Run dead code elimination on any newly unreferenced identifiers
-    deadCodeElimination(ast, previouslyReferencedIdentifiers);
   }
 };
