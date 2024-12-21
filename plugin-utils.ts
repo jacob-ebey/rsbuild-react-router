@@ -1,10 +1,10 @@
-import type { Babel, NodePath, ParseResult } from "./babel";
-import { t, traverse } from "./babel";
+import type { BabelTypes, ParseResult } from "./babel";
+import { t, traverse, type NodePath } from "./babel";
 import { normalize } from "pathe";
 import { findReferencedIdentifiers, deadCodeElimination } from 'babel-dead-code-elimination';
 
 export function validateDestructuredExports(
-    id: Babel.ArrayPattern | Babel.ObjectPattern,
+    id: BabelTypes.ArrayPattern | BabelTypes.ObjectPattern,
     exportsToRemove: string[]
 ) {
   if (id.type === "ArrayPattern") {
@@ -82,7 +82,7 @@ export function invalidDestructureError(name: string) {
   return new Error(`Cannot remove destructured export "${name}"`);
 }
 
-export function toFunctionExpression(decl: Babel.FunctionDeclaration) {
+export function toFunctionExpression(decl: BabelTypes.FunctionDeclaration) {
   return t.functionExpression(
     decl.id,
     decl.params,
@@ -147,20 +147,20 @@ export function generateWithProps() {
 }
 
 export const removeExports = (
-  ast: ParseResult<Babel.File>,
+  ast: ParseResult<BabelTypes.File>,
   exportsToRemove: string[],
 ) => {
   const previouslyReferencedIdentifiers = findReferencedIdentifiers(ast);
   let exportsFiltered = false;
-  const markedForRemoval = new Set<NodePath<Babel.Node>>();
+  const markedForRemoval = new Set<any>();
 
   traverse(ast, {
-    ExportDeclaration(path: NodePath) {
+    ExportDeclaration(path) {
       // export { foo };
       // export { bar } from "./module";
       if (path.node.type === 'ExportNamedDeclaration') {
         if (path.node.specifiers.length) {
-          path.node.specifiers = path.node.specifiers.filter((specifier: Babel.ExportSpecifier) => {
+          path.node.specifiers = path.node.specifiers.filter((specifier: BabelTypes.ExportSpecifier) => {
             // Filter out individual specifiers
             if (
               specifier.type === 'ExportSpecifier' &&
@@ -184,7 +184,7 @@ export const removeExports = (
         if (path.node.declaration?.type === 'VariableDeclaration') {
           const declaration = path.node.declaration;
           declaration.declarations = declaration.declarations.filter(
-            (declaration: Babel.VariableDeclarator) => {
+            (declaration: BabelTypes.VariableDeclarator) => {
               // export const foo = ...;
               // export const foo = ..., bar = ...;
               if (
