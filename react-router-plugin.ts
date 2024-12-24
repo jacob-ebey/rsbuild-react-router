@@ -7,7 +7,7 @@ import * as esbuild from 'esbuild';
 import { $ } from 'execa';
 import { createJiti } from 'jiti';
 import jsesc from 'jsesc';
-import type { BabelTypes, ParseResult } from './babel';
+import type { Babel, NodePath, ParseResult } from './babel';
 import { traverse, t, parse, generate } from './babel';
 import {
   toFunctionExpression,
@@ -16,22 +16,6 @@ import {
   generateWithProps,
   removeExports,
 } from './plugin-utils';
-
-type BabelNodePath<T = any> = {
-  node: T;
-  scope: {
-    generateUidIdentifier(name: string): BabelTypes.Identifier;
-  };
-  get(key: string): BabelNodePath;
-  isExpression(): boolean;
-  isFunctionDeclaration(): boolean;
-  isExportDefaultDeclaration(): boolean;
-  isExportNamedDeclaration(): boolean;
-  isVariableDeclaration(): boolean;
-  isIdentifier(): boolean;
-  replaceWith(node: BabelTypes.Node): void;
-  forEach(callback: (path: BabelNodePath) => void): void;
-};
 
 export type PluginOptions = {
   /**
@@ -187,65 +171,6 @@ export const reactRouterPlugin = (
       }
     });
 
-    // Add route transformation
-    api.transform(
-      {
-        resourceQuery: /\?react-router-route/,
-      },
-      async args => {
-        let code = (
-          await esbuild.transform(args.code, {
-            jsx: 'automatic',
-            format: 'esm',
-            platform: 'neutral',
-            loader: args.resourcePath.endsWith('x') ? 'tsx' : 'ts',
-          })
-        ).code;
-
-        const defaultExportMatch = code.match(
-          /\n\s{0,}([\w\d_]+)\sas default,?/,
-        );
-        if (
-          defaultExportMatch &&
-          typeof defaultExportMatch.index === 'number'
-        ) {
-          code =
-            code.slice(0, defaultExportMatch.index) +
-            code.slice(defaultExportMatch.index + defaultExportMatch[0].length);
-          code += `\nexport default ${defaultExportMatch[1]};`;
-        }
-
-        const ast = parse(code, { sourceType: 'module' });
-        if (args.environment.name === 'web') {
-          removeExports(ast, SERVER_ONLY_ROUTE_EXPORTS);
-        }
-        transformRoute(ast);
-
-        return generate(ast, {
-          sourceMaps: true,
-          filename: args.resource,
-          sourceFileName: args.resourcePath,
-        });
-      },
-    );
-
-    // Add transform to handle react-router development imports
-    api.transform(
-        { test: /react-router\/dist\/(development|production)\/index/ },
-      ({ code }) => {
-        // if (code.match(/await import/)) {
-        //   debugger;
-        // }
-        // Replace the dynamic import pattern
-        let newCode = code;
-          newCode = code.replace(
-            /await import \(/g,
-            'await __webpack_require__.e(',
-          );
-        return newCode;
-      },
-    );
-
     // Create virtual modules for React Router
     const vmodPlugin = new RspackVirtualModulePlugin({
       'virtual/react-router/browser-manifest': 'export default {};',
@@ -256,11 +181,6 @@ export const reactRouterPlugin = (
         basename: finalOptions.basename,
         appDirectory: finalOptions.appDirectory,
         ssr: finalOptions.ssr,
-      }),
-      'virtual/react-router/client-build': generateClientBuild(routes, {
-        entryClientPath,
-        basename: finalOptions.basename,
-        appDirectory: finalOptions.appDirectory,
       }),
       'virtual/react-router/with-props': generateWithProps(),
     });
@@ -283,9 +203,22 @@ export const reactRouterPlugin = (
           web: {
             source: {
               entry: {
-                'entry.client': 'virtual/react-router/client-build',
+                'entry.client': entryClientPath,
                 'virtual/react-router/browser-manifest':
-                'virtual/react-router/browser-manifest',
+                  'virtual/react-router/browser-manifest',
+                ...Object.values(routes).reduce(
+                  (acc, route) => ({
+                    ...acc,
+                    [route.file.slice(
+                      0,
+                      route.file.lastIndexOf('.'),
+                    )]: `${resolve(
+                      finalOptions.appDirectory,
+                      route.file,
+                    )}?react-router-route`,
+                  }),
+                  {},
+                ),
               },
             },
             output: {
@@ -349,11 +282,10 @@ export const reactRouterPlugin = (
                 rspackConfig.plugins.push({
                   apply(compiler: Rspack.Compiler) {
                     compiler.hooks.emit.tapAsync('ModifyBrowserManifest', async (compilation: Rspack.Compilation, callback) => {
-                      const stats = compilation.getStats().toJson({modules: false, reasons: false});
                       const manifest = await getReactRouterManifestForDev(
                         routes,
                         finalOptions,
-                        stats
+                        compilation.getStats().toJson()
                       );
 
                       const manifestPath = 'static/js/virtual/react-router/browser-manifest.js';
@@ -428,6 +360,48 @@ export const reactRouterPlugin = (
         };
       },
     );
+
+    // Add route transformation
+    api.transform(
+      {
+        resourceQuery: /\?react-router-route/,
+      },
+      async args => {
+        let code = (
+          await esbuild.transform(args.code, {
+            jsx: 'automatic',
+            format: 'esm',
+            platform: 'neutral',
+            loader: args.resourcePath.endsWith('x') ? 'tsx' : 'ts',
+          })
+        ).code;
+
+        const defaultExportMatch = code.match(
+          /\n\s{0,}([\w\d_]+)\sas default,?/,
+        );
+        if (
+          defaultExportMatch &&
+          typeof defaultExportMatch.index === 'number'
+        ) {
+          code =
+            code.slice(0, defaultExportMatch.index) +
+            code.slice(defaultExportMatch.index + defaultExportMatch[0].length);
+          code += `\nexport default ${defaultExportMatch[1]};`;
+        }
+
+        const ast = parse(code, { sourceType: 'module' });
+        if (args.environment.name === 'web') {
+          removeExports(ast, SERVER_ONLY_ROUTE_EXPORTS);
+        }
+        transformRoute(ast);
+
+        return generate(ast, {
+          sourceMaps: true,
+          filename: args.resource,
+          sourceFileName: args.resourcePath,
+        });
+      },
+    );
   },
 });
 
@@ -490,13 +464,13 @@ async function getReactRouterManifestForDev(
       index: route.index,
       caseSensitive: route.caseSensitive,
       module: combineURLs(
-        '/static/js/async/',
+        '/static/js/',
         `${route.file.slice(0, route.file.lastIndexOf('.'))}.js`,
       ),
       hasAction: false,
       hasLoader: route.id === 'routes/home',
       hasClientAction: false,
-      hasClientLoader: true,
+      hasClientLoader: false,
       hasErrorBoundary: route.id === 'root',
       imports: jsAssets.map(asset => combineURLs('/', asset)),
       css: cssAssets.map(asset => combineURLs('/', asset)),
@@ -537,6 +511,15 @@ function generateServerBuild(
 ): string {
   return `
     import * as entryServer from ${JSON.stringify(options.entryServerPath)};
+    ${Object.keys(routes)
+      .map((key, index) => {
+        const route = routes[key];
+        return `import * as route${index} from ${JSON.stringify(
+          `${resolve(options.appDirectory, route.file)}?react-router-route`,
+        )};`;
+      })
+      .join('\n')}
+
     export { default as assets } from "virtual/react-router/server-manifest";
     export const assetsBuildDirectory = ${JSON.stringify(
       options.assetsBuildDirectory,
@@ -546,70 +529,9 @@ function generateServerBuild(
     export const isSpaMode = ${!options.ssr};
     export const publicPath = "/";
     export const entry = { module: entryServer };
-
-    const routeModules = {
-      ${Object.keys(routes)
-        .map((key) => {
-          const route = routes[key];
-          return `${JSON.stringify(key)}: () => import(
-            /* webpackChunkName: ${JSON.stringify(route.id)} */
-            ${JSON.stringify(`${resolve(options.appDirectory, route.file)}?react-router-route`)}
-          )`;
-        })
-        .join(',\n  ')}
-    };
-
-    const createRouteProxy = (routeKey, id) => {
-      let modulePromise;
-      let loadedModule;
-      const getModule = () => {
-        if (!modulePromise) {
-          modulePromise = routeModules[routeKey]().then(mod => {
-            loadedModule = mod;
-            return mod;
-          });
-        }
-        return modulePromise;
-      };
-
-      return new Proxy({}, {
-        get(target, prop) {
-          if (prop === 'loader') {
-            return async (...args) => {
-              const mod = await getModule();
-              if (mod.loader) {
-                const result = await mod.loader(...args);
-                return result;
-              }
-              return null;
-            };
-          }
-          // Meta is synchronous but depends on loader data
-          if (prop === 'meta') {
-            return (...args) => {
-              // If module is not loaded yet, return empty array
-              // The loader will have triggered the load
-              if (!loadedModule) {
-                return [];
-              }
-              if (loadedModule.meta) {
-                return loadedModule.meta(...args);
-              }
-              return [];
-            };
-          }
-          // For other props, if module is loaded return sync, otherwise return promise
-          if (loadedModule) {
-            return loadedModule[prop];
-          }
-          return getModule().then(mod => mod[prop]);
-        }
-      });
-    };
-
     export const routes = {
       ${Object.keys(routes)
-        .map((key) => {
+        .map((key, index) => {
           const route = routes[key];
           return `${JSON.stringify(key)}: {
             id: ${JSON.stringify(route.id)},
@@ -617,7 +539,7 @@ function generateServerBuild(
             path: ${JSON.stringify(route.path)},
             index: ${JSON.stringify(route.index)},
             caseSensitive: ${JSON.stringify(route.caseSensitive)},
-            module: createRouteProxy(${JSON.stringify(key)}, ${JSON.stringify(route.id)})
+            module: route${index}
           }`;
         })
         .join(',\n  ')}
@@ -625,104 +547,16 @@ function generateServerBuild(
   `;
 }
 
-function generateClientBuild(
-  routes: Record<string, Route>,
-  options: {
-    entryClientPath: string;
-    appDirectory: string;
-    basename: string;
-  },
-): string {
-  return `
-    import * as entryClient from ${JSON.stringify(options.entryClientPath)};
-
-    const routeModules = {
-      ${Object.keys(routes)
-        .map((key) => {
-          const route = routes[key];
-          return `${JSON.stringify(key)}: () => import(
-            /* webpackChunkName: ${JSON.stringify(route.id)} */
-            ${JSON.stringify(`${resolve(options.appDirectory, route.file)}?react-router-route`)}
-          )`;
-        })
-        .join(',\n  ')}
-    };
-
-    const createRouteProxy = (routeKey, id) => {
-      let modulePromise;
-      let loadedModule;
-      const getModule = () => {
-        if (!modulePromise) {
-          modulePromise = routeModules[routeKey]().then(mod => {
-            loadedModule = mod;
-            return mod;
-          });
-        }
-        return modulePromise;
-      };
-
-      return new Proxy({}, {
-        get(target, prop) {
-          if (prop === 'clientLoader') {
-            return async (...args) => {
-              const mod = await getModule();
-              if (mod.clientLoader) {
-                const result = await mod.clientLoader(...args);
-                return result;
-              }
-              return null;
-            };
-          }
-          if (prop === 'clientAction') {
-            return async (...args) => {
-              const mod = await getModule();
-              if (mod.clientAction) {
-                const result = await mod.clientAction(...args);
-                return result;
-              }
-              return null;
-            };
-          }
-          // For other props, if module is loaded return sync, otherwise return promise
-          if (loadedModule) {
-          console.log(target, prop);
-            return loadedModule[prop];
-          }
-          return getModule().then(mod => mod[prop]);
-        }
-      });
-    };
-
-    export const routes = {
-      ${Object.keys(routes)
-        .map((key) => {
-          const route = routes[key];
-          return `${JSON.stringify(key)}: {
-            id: ${JSON.stringify(route.id)},
-            parentId: ${JSON.stringify(route.parentId)},
-            path: ${JSON.stringify(route.path)},
-            index: ${JSON.stringify(route.index)},
-            caseSensitive: ${JSON.stringify(route.caseSensitive)},
-            module: createRouteProxy(${JSON.stringify(key)}, ${JSON.stringify(route.id)})
-          }`;
-        })
-        .join(',\n  ')}
-    };
-
-    export { routeModules };
-  `;
-}
-
-export const transformRoute = (ast: ParseResult<BabelTypes.File>) => {
-  const hocs: Array<[string, BabelTypes.Identifier]> = [];
-  function getHocUid(path: BabelNodePath<BabelTypes.Node>, hocName: string) {
+export const transformRoute = (ast: ParseResult<Babel.File>) => {
+  const hocs: Array<[string, Babel.Identifier]> = [];
+  function getHocUid(path: NodePath, hocName: string) {
     const uid = path.scope.generateUidIdentifier(hocName);
     hocs.push([hocName, uid]);
     return uid;
   }
 
   traverse(ast, {
-    ExportDeclaration(path: BabelNodePath<BabelTypes.ExportDeclaration>) {
+    ExportDeclaration(path: NodePath) {
       if (path.isExportDefaultDeclaration()) {
         const declaration = path.get('declaration');
         // prettier-ignore
@@ -742,7 +576,7 @@ export const transformRoute = (ast: ParseResult<BabelTypes.File>) => {
 
         if (decl.isVariableDeclaration()) {
           // biome-ignore lint/complexity/noForEach: <explanation>
-          decl.get('declarations').forEach((varDeclarator: BabelNodePath<BabelTypes.VariableDeclarator>) => {
+          decl.get('declarations').forEach((varDeclarator: NodePath) => {
             const id = varDeclarator.get('id');
             const init = varDeclarator.get('init');
             const expr = init.node;
