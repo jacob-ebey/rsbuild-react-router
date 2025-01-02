@@ -10,10 +10,10 @@ importers:
     dependencies:
       '@react-router/express':
         specifier: ^7.0.2
-        version: 7.0.2(express@4.21.2)(react-router@7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)
+        version: 7.0.2(express@4.21.2)(react-router@0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)
       '@react-router/node':
         specifier: ^7.0.2
-        version: 7.0.2(react-router@7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)
+        version: 7.0.2(react-router@0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)
       express:
         specifier: ^4.21.2
         version: 4.21.2
@@ -27,8 +27,8 @@ importers:
         specifier: ^19.0.0
         version: 19.0.0(react@19.0.0)
       react-router:
-        specifier: ^7.0.2
-        version: 7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+        specifier: 0.0.0-experimental-6844c5934
+        version: 0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
     devDependencies:
       '@babel/core':
         specifier: ^7.26.0
@@ -53,7 +53,7 @@ importers:
         version: 7.26.3
       '@react-router/dev':
         specifier: ^7.0.2
-        version: 7.0.2(@types/node@22.10.2)(react-router@7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)(vite@5.4.11(@types/node@22.10.2))
+        version: 7.0.2(@types/node@22.10.2)(react-router@0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)(vite@5.4.11(@types/node@22.10.2))
       '@rsbuild/core':
         specifier: ^1.1.10
         version: 1.1.10
@@ -664,61 +664,51 @@ packages:
     resolution: {integrity: sha512-QAg11ZIt6mcmzpNE6JZBpKfJaKkqTm1A9+y9O+frdZJEuhQxiugM05gnCWiANHj4RmbgeVJpTdmKRmH/a+0QbA==}
     cpu: [arm]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-arm-musleabihf@4.28.1':
     resolution: {integrity: sha512-dRP9PEBfolq1dmMcFqbEPSd9VlRuVWEGSmbxVEfiq2cs2jlZAl0YNxFzAQS2OrQmsLBLAATDMb3Z6MFv5vOcXg==}
     cpu: [arm]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-arm64-gnu@4.28.1':
     resolution: {integrity: sha512-uGr8khxO+CKT4XU8ZUH1TTEUtlktK6Kgtv0+6bIFSeiSlnGJHG1tSFSjm41uQ9sAO/5ULx9mWOz70jYLyv1QkA==}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-musl@4.28.1':
     resolution: {integrity: sha512-QF54q8MYGAqMLrX2t7tNpi01nvq5RI59UBNx+3+37zoKX5KViPo/gk2QLhsuqok05sSCRluj0D00LzCwBikb0A==}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-loongarch64-gnu@4.28.1':
     resolution: {integrity: sha512-vPul4uodvWvLhRco2w0GcyZcdyBfpfDRgNKU+p35AWEbJ/HPs1tOUrkSueVbBS0RQHAf/A+nNtDpvw95PeVKOA==}
     cpu: [loong64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-powerpc64le-gnu@4.28.1':
     resolution: {integrity: sha512-pTnTdBuC2+pt1Rmm2SV7JWRqzhYpEILML4PKODqLz+C7Ou2apEV52h19CR7es+u04KlqplggmN9sqZlekg3R1A==}
     cpu: [ppc64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-gnu@4.28.1':
     resolution: {integrity: sha512-vWXy1Nfg7TPBSuAncfInmAI/WZDd5vOklyLJDdIRKABcZWojNDY0NJwruY2AcnCLnRJKSaBgf/GiJfauu8cQZA==}
     cpu: [riscv64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-s390x-gnu@4.28.1':
     resolution: {integrity: sha512-/yqC2Y53oZjb0yz8PVuGOQQNOTwxcizudunl/tFs1aLvObTclTwZ0JhXF2XcPT/zuaymemCDSuuUPXJJyqeDOg==}
     cpu: [s390x]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.28.1':
     resolution: {integrity: sha512-fzgeABz7rrAlKYB0y2kSEiURrI0691CSL0+KXwKwhxvj92VULEDQLpBYLHpF49MSiPG4sq5CK3qHMnb9tlCjBw==}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.28.1':
     resolution: {integrity: sha512-xQTDVzSGiMlSshpJCtudbWyRfLaNiVPXt1WgdWTwWz9n0U12cI2ZVtWe/Jgwyv/6wjL7b66uu61Vg0POWVfz4g==}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-win32-arm64-msvc@4.28.1':
     resolution: {integrity: sha512-wSXmDRVupJstFP7elGMgv+2HqXelQhuNf+IS4V+nUpNVi/GUiBgDmfwD0UGN3pcAnWsgKG3I52wMOBnk1VHr/A==}
@@ -759,25 +749,21 @@ packages:
     resolution: {integrity: sha512-lZlO/rAJSeozi+qtVLkGSXfe+riPawCwM4FsrflELfNlvvEXpANwtrdJ+LsaNVXcgvhh50ZX2KicTdmx9G2b6Q==}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@rspack/binding-linux-arm64-musl@1.1.8':
     resolution: {integrity: sha512-bX7exULSZwy8xtDh6Z65b6sRC4uSxGuyvSLCEKyhmG6AnJkg0gQMxk3hoO0hWnyGEZgdJEn+jEhk0fjl+6ZRAQ==}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@rspack/binding-linux-x64-gnu@1.1.8':
     resolution: {integrity: sha512-2Prw2USgTJ3aLdLExfik8pAwAHbX4MZrACBGEmR7Vbb56kLjC+++fXkciRc50pUDK4JFr1VQ7eNZrJuDR6GG6Q==}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@rspack/binding-linux-x64-musl@1.1.8':
     resolution: {integrity: sha512-bnVGB/mQBKEdzOU/CPmcOE3qEXxGOGGW7/i6iLl2MamVOykJq8fYjL9j86yi6L0r009ja16OgWckykQGc4UqGw==}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@rspack/binding-win32-arm64-msvc@1.1.8':
     resolution: {integrity: sha512-u+na3gxhzeksm4xZyAzn1+XWo5a5j7hgWA/KcFPDQ8qQNkRknx4jnQMxVtcZ9pLskAYV4AcOV/AIximx7zvv8A==}
@@ -1652,8 +1638,8 @@ packages:
     resolution: {integrity: sha512-FPvF2XxTSikpJxcr+bHut2H4gJ17+18Uy20D5/F+SKzFap62R3cM5wH6b8WN3LyGSYeQilLEcJcR1fjBSI2S1A==}
     engines: {node: '>=0.10.0'}
 
-  react-router@7.0.2:
-    resolution: {integrity: sha512-m5AcPfTRUcjwmhBzOJGEl6Y7+Crqyju0+TgTQxoS4SO+BkWbhOrcfZNq6wSWdl2BBbJbsAoBUb8ZacOFT+/JlA==}
+  react-router@0.0.0-experimental-6844c5934:
+    resolution: {integrity: sha512-Foy76of/7VvDNeIKjUjfU8QXLlmH+EXx5MO9W2P9+x1R3fLkD8AgQaCbWpX8kxZfD6KbyCchnMlPyr0PFZ9NjQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       react: '>=18'
@@ -2427,7 +2413,7 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@react-router/dev@7.0.2(@types/node@22.10.2)(react-router@7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)(vite@5.4.11(@types/node@22.10.2))':
+  '@react-router/dev@7.0.2(@types/node@22.10.2)(react-router@0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)(vite@5.4.11(@types/node@22.10.2))':
     dependencies:
       '@babel/core': 7.26.0
       '@babel/generator': 7.26.3
@@ -2438,7 +2424,7 @@ snapshots:
       '@babel/traverse': 7.26.4
       '@babel/types': 7.26.3
       '@npmcli/package-json': 4.0.1
-      '@react-router/node': 7.0.2(react-router@7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)
+      '@react-router/node': 7.0.2(react-router@0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)
       arg: 5.0.2
       babel-dead-code-elimination: 1.0.8
       chokidar: 4.0.3
@@ -2454,7 +2440,7 @@ snapshots:
       picomatch: 2.3.1
       prettier: 2.8.8
       react-refresh: 0.14.2
-      react-router: 7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react-router: 0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       semver: 7.6.3
       set-cookie-parser: 2.7.1
       valibot: 0.41.0(typescript@5.7.2)
@@ -2475,18 +2461,18 @@ snapshots:
       - supports-color
       - terser
 
-  '@react-router/express@7.0.2(express@4.21.2)(react-router@7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)':
+  '@react-router/express@7.0.2(express@4.21.2)(react-router@0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)':
     dependencies:
-      '@react-router/node': 7.0.2(react-router@7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)
+      '@react-router/node': 7.0.2(react-router@0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)
       express: 4.21.2
-      react-router: 7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react-router: 0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
     optionalDependencies:
       typescript: 5.7.2
 
-  '@react-router/node@7.0.2(react-router@7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)':
+  '@react-router/node@7.0.2(react-router@0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.2)':
     dependencies:
       '@mjackson/node-fetch-server': 0.2.0
-      react-router: 7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react-router: 0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       source-map-support: 0.5.21
       stream-slice: 0.1.2
       undici: 6.21.0
@@ -3450,7 +3436,7 @@ snapshots:
 
   react-refresh@0.16.0: {}
 
-  react-router@7.0.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
+  react-router@0.0.0-experimental-6844c5934(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:
       '@types/cookie': 0.6.0
       cookie: 1.0.2

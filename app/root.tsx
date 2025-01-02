@@ -4,11 +4,11 @@ import {
   Links,
   Meta,
   Outlet,
-  Scripts,
+  // Scripts,
   ScrollRestoration,
   useRouteError,
 } from "react-router";
-
+import {Scripts} from './scripts'
 import type { Route } from "./+types/root";
 import "./app.css";
 // import stylesheet from "./app.css?url";
