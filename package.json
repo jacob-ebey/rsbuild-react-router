@@ -18,7 +18,7 @@
     "isbot": "^5.1.18",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router": "^7.0.2"
+    "react-router": "0.0.0-experimental-6844c5934"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
